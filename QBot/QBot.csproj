@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="1.0.2" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.105.2" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.106" />
   </ItemGroup>
   <ItemGroup>
     <None Update="BotToken">
@@ -18,5 +18,11 @@
     <None Update="Data\Players.sqlite">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="BotToken - Copy" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="guilds.sql" />
   </ItemGroup>
 </Project>

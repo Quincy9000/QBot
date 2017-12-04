@@ -15,14 +15,6 @@ namespace QBot.Commands
 {
 	public class NormalCommands : ModuleBase
 	{
-		[Command("ree")]
-		[Summary("become autism")]
-		public async Task Reee()
-		{
-			string reeee = "R" + new string('E', 10);
-			await ReplyAsync(reeee);
-		}
-		
 		[Command("help")]
 		[Summary("Lists all the available commands that the bot can currently do")]
 		public async Task Help()
@@ -50,12 +42,12 @@ namespace QBot.Commands
 			await ReplyAsync(echo);
 		}
 
-		[Command("square")]
-		[Summary("Squares a number.")]
-		public async Task Square([Summary("The number to square.")] int num)
-		{
-			await Context.Channel.SendMessageAsync($"{num}^2 = {Math.Pow(num, 2)}");
-		}
+//		[Command("square")]
+//		[Summary("Squares a number.")]
+//		public async Task Square([Summary("The number to square.")] int num)
+//		{
+//			await Context.Channel.SendMessageAsync($"{num}^2 = {Math.Pow(num, 2)}");
+//		}
 
 		[Command("roll")]
 		[Summary("Rolls a dice n number of sides n number of times, ex qroll 4 4, rolls 4 sided dice 4 times")]
@@ -90,11 +82,7 @@ namespace QBot.Commands
 					b.IconUrl = url;
 				});
 			}
-			string bot = "";
-			if (user.IsBot)
-				bot = "**Bot:** BEEP BOOP NOT A BOT";
-			else
-				bot = "**Human:** I AM A HUMAN";
+			string bot = user.IsBot ? "**Bot:** BEEP BOOP NOT A BOT" : "**Human:** I AM A HUMAN";
 			string roles = "";
 			foreach (var r in user.Roles)
 			{
@@ -187,14 +175,6 @@ namespace QBot.Commands
 			return json;
 		}
 
-		[Command("react")]
-		[Summary("fuck")]
-		public async Task React(string e = null)
-		{
-			Console.WriteLine(e);
-			await Context.Message.AddReactionAsync(new Emoji(":A:"));
-		}
-
 		[Command("subpic")]
 		[Summary("Get a pic from a subreddit")]
 		[Alias("sp", "pic")]
@@ -272,8 +252,7 @@ namespace QBot.Commands
 		[RequireBotPermission(ChannelPermission.ManageMessages)]
 		public async Task Delete(IUser user, int n = 1)
 		{
-			var u = user as SocketGuildUser;
-			if (u == null) return;
+			if (!(user is SocketGuildUser u)) return;
 
 			var a = Context.Channel.GetMessagesAsync(n).Flatten().Result.Where(m => m.Author.Id == u.Id);
 
@@ -298,12 +277,8 @@ namespace QBot.Commands
 		{
 			if (Context.User.ToString() == "Quincy#1672")
 			{
-				await ReplyAsync("Shutting down...");
+				await ReplyAsync("Shutting down!");
 				Program.IsExit = true;
-			}
-			else
-			{
-				await ReplyAsync($"HELP {Program.Quincy.Mention}, SOMEONE'S TRYING TO KILL ME!!!!");
 			}
 		}
 
@@ -409,6 +384,44 @@ namespace QBot.Commands
 //		    Console.WriteLine("name={0}, id={1}", name, id);
 //		    Console.WriteLine("url=https://cdn.discordapp.com/emojis/{0}.png", id);
 			await ReplyAsync($"https://cdn.discordapp.com/emojis/{id}.png");
+		}
+
+		[Command("reset")]
+		[Summary("fuck shit up")]
+		[RequireUserPermission(GuildPermission.Administrator)]
+		public async Task SetAllNames()
+		{
+			var users = await Context.Guild.GetUsersAsync();
+			foreach(var user in users)
+			{
+				try
+				{
+					await user.ModifyAsync(u => { u.Nickname = user.Username; });
+				}
+				catch
+				{
+					continue;
+				}
+			}
+		}
+
+		[Command("nickname")]
+		[Summary("fuck shit up")]
+		[RequireUserPermission(GuildPermission.ChangeNickname)]
+		public async Task SetNickName(string name)
+		{
+			var users = await Context.Guild.GetUsersAsync();
+			foreach (var user in users)
+			{
+				if (user.Id == Context.User.Id)
+				{
+					await user.ModifyAsync(u =>
+					{
+						u.Nickname = name;
+					});
+					break;
+				}
+			}
 		}
 
 		[Command("henlo")]

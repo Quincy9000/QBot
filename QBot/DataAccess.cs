@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Data;
 using System.Data.SQLite;
+using System.Net;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
 
 namespace QBot
 {
     public class DataAccess
     {
-        public readonly string _con = $"Data Source = {_DATABASENAME};Version=3";
+        public static readonly string _con = $"Data Source = {_DATABASENAME};Version=3";
 
-        public const string _DATABASENAME = "data.sqlite";
+        public const string _DATABASENAME = "guilds.sqlite";
 
         public static string DataPath(string path)
         {
@@ -45,6 +47,21 @@ namespace QBot
                 }
             });
             return ds;
+        }
+
+        /// <summary>
+        /// Checks to see if database exists, returns true if it makes it.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public static bool CreateDatabase(string name)
+        {
+            if(!System.IO.File.Exists(name))
+            {
+                SQLiteConnection.CreateFile(name);
+                return true;
+            }
+            return false;
         }
 
         /// <summary>Executes commands.</summary>
