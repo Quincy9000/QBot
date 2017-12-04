@@ -301,3 +301,5 @@ __pycache__/
 *.xsd.cs
 QBot/BotToken - Copy
 QBot/BotToken
+*.sqlite
+*.sqlite
