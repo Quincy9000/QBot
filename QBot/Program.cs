@@ -42,15 +42,18 @@ namespace QBot
 				Client.Ready += async () =>
 				{
 					Quincy = Client.GetUser(66162202129739776);
+					foreach (var guild in Client.Guilds)
+						await AddNewGuildToDb(guild);
 					Console.WriteLine("Ready!");
 					await Task.CompletedTask;
 				};
-				
-				Client.LeftGuild += DeleteGuildFromDb;
 
+				Client.LeftGuild += DeleteGuildFromDb;
 				Client.JoinedGuild += AddNewGuildToDb;
-				
-				Client.UserJoined += async (s) => { await Task.CompletedTask; };
+
+				Client.UserJoined += UserJoinedGuild;
+				Client.UserLeft += UserLeftGuild;
+
 
 				await Client.LoginAsync(TokenType.Bot, Q.Token);
 				await Client.StartAsync();
@@ -71,37 +74,76 @@ namespace QBot
 				CommandText = $"DROP TABLE IF EXISTS \"{socketGuild.Id}\";"
 			};
 
-			Console.WriteLine($"Left Guild! {socketGuild.Name}");
+			Console.WriteLine($"QBot left {socketGuild.Name}!");
 			if(!await DataAccess.ExecuteCommand(DataAccess._con, command))
 			{
 				Console.WriteLine("uh oh");
 			}
 		}
 
+		static async Task UserJoinedGuild(SocketGuildUser u)
+		{
+			SQLiteCommand c = new SQLiteCommand { CommandText = $"SELECT * FROM \"{u.Guild.Id}\" WHERE [UserID] = @id;"};
+			c.Parameters.AddWithValue("@id", u.Id);
+			var data = await DataAccess.FillDataSet(DataAccess._con, c);
+			try
+			{
+				if (data.Tables[0].Rows.Count == 0)
+				{
+					SQLiteCommand command = new SQLiteCommand
+					{
+						CommandText = $"INSERT INTO \"{u.Guild.Id}\" ([UserID], [Name], [Nickname]) VALUES(@id, @name, @nickname)"
+					};
+
+					command.Parameters.AddWithValue("@id", u.Id);
+					command.Parameters.AddWithValue("@name", u.Username);
+					command.Parameters.AddWithValue("@nickname", u.Nickname);
+					await DataAccess.ExecuteCommand(DataAccess._con, command);
+
+					Console.WriteLine($"---- {u.Username} Joined {u.Guild.Name}!");
+					command.Dispose();
+				}
+			}
+			catch(Exception lol)
+			{
+				Console.WriteLine(lol.Message);
+			}
+		}
+
+		static async Task UserLeftGuild(SocketGuildUser u)
+		{
+			SQLiteCommand command = new SQLiteCommand
+			{
+				CommandText = $"DELETE FROM \"{u.Guild.Id}\" WHERE [UserID] = @id;"
+			};
+
+			command.Parameters.AddWithValue("@id", u.Id);
+
+			await DataAccess.ExecuteCommand(DataAccess._con, command);
+			command.Dispose();
+
+			Console.WriteLine($"Removed {u.Username} from {u.Guild.Name}!");
+		}
+
 		static async Task AddNewGuildToDb(SocketGuild s)
 		{
+			string dropLol = $"DROP TABLE IF EXISTS \"{s.Id}\"; ";
 			SQLiteCommand command = new SQLiteCommand()
 			{
 				//Server Id as the table name
 				CommandText =
-					$"DROP TABLE IF EXISTS \"{s.Id}\"; CREATE TABLE IF NOT EXISTS \"{s.Id}\" ( [UserID] INTEGER, [Name] TEXT, [Nickname] TEXT, PRIMARY KEY(`UserID`) );",
+					$"CREATE TABLE IF NOT EXISTS \"{s.Id}\" ( [UserID] INTEGER NOT NULL UNIQUE, [Name] TEXT NOT NULL, [Nickname] TEXT, PRIMARY KEY(`UserID`) );",
 			};
 
 			await DataAccess.ExecuteCommand(DataAccess._con, command);
 
-			command.CommandText = $"INSERT INTO \"{s.Id}\" ([UserID], [Name], [Nickname]) VALUES(@id, @name, @nickname)";
-
+			Console.WriteLine($"QBot joined new {s.Name}!");
 			var users = s.Users;
-			foreach(var u in users)
+			foreach (var u in users)
 			{
-				command.Parameters.AddWithValue("@id", u.Id);
-				command.Parameters.AddWithValue("@name", u.Username);
-				command.Parameters.AddWithValue("@nickname", u.Nickname);
-				await DataAccess.ExecuteCommand(DataAccess._con, command);
-				command.Parameters.Clear();
+				await UserJoinedGuild(u);
 			}
 
-			Console.WriteLine($"Joined new Server! {s.Name}");
 			await Task.CompletedTask;
 		}
 

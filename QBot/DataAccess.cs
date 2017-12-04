@@ -18,51 +18,54 @@ namespace QBot
             return $"Data Source = {path};Version=3";
         }
 
-        /// <summary>This method fills a DataSet with data from a table.</summary>
-        /// <param name="sql">SQL query to be executed</param>
-        /// <param name="con">Connection information</param>
-        /// <returns>Returns DataSet with queried results</returns>
-        public static async Task<DataSet> FillDataSet(string sql, string con)
-        {
-            DataSet ds = new DataSet();
-            SQLiteConnection connection = new SQLiteConnection(con);
-            SQLiteCommand command = new SQLiteCommand(sql, connection);
-            await Task.Run(() =>
-            {
-                try
-                {
-                    SQLiteDataAdapter da = new SQLiteDataAdapter(command);
-                    da.Fill(ds);
-                    da.Dispose();
-                }
-                catch(Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
-                finally
-                {
-                    connection.Close();
-                    connection.Dispose();
-                    command.Dispose();
-                }
-            });
-            return ds;
-        }
+		/// <summary>This method fills a DataSet with data from a table.</summary>
+		/// <param name="con">Connection information</param>
+		/// <param name="sql">SQL query to be executed</param>
+		/// <returns>Returns DataSet with queried results</returns>
+		public static async Task<DataSet> FillDataSet(string con, string sql) => await FillDataSet(con, new SQLiteCommand { CommandText = sql });
 
-        /// <summary>
-        /// Checks to see if database exists, returns true if it makes it.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public static bool CreateDatabase(string name)
-        {
-            if(!System.IO.File.Exists(name))
-            {
-                SQLiteConnection.CreateFile(name);
-                return true;
-            }
-            return false;
-        }
+		/// <summary>This method fills a DataSet with data from a table.</summary>
+		/// <param name="con">Connection information</param>
+		/// <param name="cmd">SQLite command to be executed</param>
+		/// <returns>Returns DataSet with queried results</returns>
+		public static async Task<DataSet> FillDataSet(string con, SQLiteCommand cmd)
+		{
+			DataSet ds = new DataSet();
+			SQLiteConnection connection = new SQLiteConnection(con);
+			cmd.Connection = connection;
+			await Task.Run(() =>
+			{
+				try
+				{
+					SQLiteDataAdapter da = new SQLiteDataAdapter(cmd);
+					da.Fill(ds);
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine(ex.Message);
+				}
+				finally
+				{
+					connection.Close();
+				}
+			});
+			return ds;
+		}
+
+		///// <summary>
+		///// Checks to see if database exists, returns true if it makes it.
+		///// </summary>
+		///// <param name="name"></param>
+		///// <returns></returns>
+		//public static bool CreateDatabase(string name)
+  //      {
+  //          if(!System.IO.File.Exists(name))
+  //          {
+  //              SQLiteConnection.CreateFile(name);
+  //              return true;
+  //          }
+  //          return false;
+  //      }
 
         /// <summary>Executes commands.</summary>
         /// <param name="con">Connection information</param>
