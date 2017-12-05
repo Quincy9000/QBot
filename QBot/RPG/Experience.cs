@@ -40,16 +40,16 @@ namespace QuincyBot.RPG
 
 		public int SkillPointsToSpend { get; private set; }
 
-		int points;
+        private int points;
 
 		public int Level { get; private set; }
 
-		/// <summary>
-		/// Checks if the exp earned is enough to get receive a level up
-		/// </summary>
-		/// <param name="exp"></param>
-		/// <returns></returns>
-		int TryLevel(int exp)
+        /// <summary>
+        /// Checks if the exp earned is enough to get receive a level up
+        /// </summary>
+        /// <param name="exp"></param>
+        /// <returns></returns>
+        private int TryLevel(int exp)
 		{
 			int l = 0;
 			foreach(var i in levels)
@@ -61,9 +61,9 @@ namespace QuincyBot.RPG
 			return l;
 		}
 
-		int maxLevel => levels.Length;
+        private int maxLevel => levels.Length;
 
-		readonly int[] levels =
+        private readonly int[] levels =
 		{
 			0,
 			100,

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace QBot
 {
-	class E621
+    internal class E621
 	{
 		public class CreatedAt
 		{
