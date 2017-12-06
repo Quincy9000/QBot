@@ -1,18 +1,18 @@
 ﻿using System;
-using System.Data.SQLite;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using LiteDB;
 
 namespace QBot
 {
     internal class Program
     {
-        private static DiscordSocketClient Client;
+        static DiscordSocketClient Client;
+
+		const string DatabaseName = "guilds.db";
 
         public static bool IsExit = false;
 
@@ -42,6 +42,7 @@ namespace QBot
                 Client.Ready += async () =>
                 {
                     Quincy = Client.GetUser(66162202129739776);
+					Console.WriteLine($"In {Client.Guilds.Count} guilds!");
                     foreach (var guild in Client.Guilds)
                         await AddNewGuildToDb(guild);
                     Console.WriteLine("Ready!");
@@ -66,84 +67,173 @@ namespace QBot
             }
         }
 
-        private static async Task DeleteGuildFromDb(SocketGuild socketGuild)
+        private static async Task DeleteGuildFromDb(SocketGuild s)
         {
-            SQLiteCommand command = new SQLiteCommand()
-            {
-                CommandText = $"DROP TABLE IF EXISTS \"{socketGuild.Id}\";"
-            };
+			#region delete
+			//SQLiteCommand command = new SQLiteCommand()
+			//{
+			//    CommandText = $"DROP TABLE IF EXISTS \"{socketGuild.Id}\";"
+			//};
 
-            Console.WriteLine($"QBot left {socketGuild.Name}!");
-            if (!await DataAccess.ExecuteCommand(DataAccess._con, command))
-            {
-                Console.WriteLine("uh oh");
-            }
+			//Console.WriteLine($"QBot left {socketGuild.Name}!");
+			//if (!await DataAccess.ExecuteCommand(DataAccess._con, command))
+			//{
+			//    Console.WriteLine("uh oh");
+			//}
+			#endregion
+
+			try
+			{
+				using (var db = new LiteDatabase(DatabaseName))
+				{
+					if(db.CollectionExists($"{s.Id}"))
+					{
+						db.DropCollection($"{s.Id}");
+						Console.WriteLine($"QBot left {s.Name}!");
+					}
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+			}
+
+			await Task.CompletedTask;
         }
 
         private static async Task UserJoinedGuild(SocketGuildUser u)
         {
-            SQLiteCommand c = new SQLiteCommand { CommandText = $"SELECT * FROM \"{u.Guild.Id}\" WHERE [UserID] = @id;" };
-            c.Parameters.AddWithValue("@id", u.Id);
-            var data = await DataAccess.FillDataSet(DataAccess._con, c);
-            try
-            {
-                if (data.Tables[0].Rows.Count == 0)
-                {
-                    SQLiteCommand command = new SQLiteCommand
-                    {
-                        CommandText = $"INSERT INTO \"{u.Guild.Id}\" ([UserID], [Name], [Nickname]) VALUES(@id, @name, @nickname)"
-                    };
+			#region joined
+			//SQLiteCommand c = new SQLiteCommand { CommandText = $"SELECT * FROM \"{u.Guild.Id}\" WHERE [UserID] = @id;" };
+			//c.Parameters.AddWithValue("@id", u.Id);
+			//var data = await DataAccess.FillDataSet(DataAccess._con, c);
+			//try
+			//{
+			//    if (data.Tables[0].Rows.Count == 0)
+			//    {
+			//        SQLiteCommand command = new SQLiteCommand
+			//        {
+			//            CommandText = $"INSERT INTO \"{u.Guild.Id}\" ([UserID], [Name], [Nickname]) VALUES(@id, @name, @nickname)"
+			//        };
 
-                    command.Parameters.AddWithValue("@id", u.Id);
-                    command.Parameters.AddWithValue("@name", u.Username);
-                    command.Parameters.AddWithValue("@nickname", u.Nickname);
-                    await DataAccess.ExecuteCommand(DataAccess._con, command);
+			//        command.Parameters.AddWithValue("@id", u.Id);
+			//        command.Parameters.AddWithValue("@name", u.Username);
+			//        command.Parameters.AddWithValue("@nickname", u.Nickname);
+			//        await DataAccess.ExecuteCommand(DataAccess._con, command);
 
-                    Console.WriteLine($"---- {u.Username} Joined {u.Guild.Name}!");
-                    command.Dispose();
-                }
-            }
-            catch (Exception lol)
-            {
-                Console.WriteLine(lol.Message);
-            }
+			//        Console.WriteLine($"---- {u.Username} Joined {u.Guild.Name}!");
+			//        command.Dispose();
+			//    }
+			//}
+			//catch (Exception lol)
+			//{
+			//    Console.WriteLine(lol.Message);
+			//}
+			#endregion
+
+			try
+			{
+				using (var db = new LiteDatabase(DatabaseName))
+				{
+					var collection = db.GetCollection<GuildMember>($"{u.Guild.Id}");
+
+					//if we cant find the id in the database we add it
+					if(!collection.Exists(x => x.UniqueId == u.Id))
+					{
+						var member = new GuildMember()
+						{
+							UserName = u.Username,
+							NickName = u.Nickname,
+							Server = u.Guild.Id,
+							UniqueId = u.Id,
+						};
+
+						collection.Insert(member);
+
+						Console.WriteLine($"---- {u.Username} Joined {u.Guild.Name}!");
+					}
+				}
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine(e);
+			}
+
+			await Task.CompletedTask;
         }
 
         private static async Task UserLeftGuild(SocketGuildUser u)
         {
-            SQLiteCommand command = new SQLiteCommand
-            {
-                CommandText = $"DELETE FROM \"{u.Guild.Id}\" WHERE [UserID] = @id;"
-            };
+			#region userLeft
+			//SQLiteCommand command = new SQLiteCommand
+			//{
+			//    CommandText = $"DELETE FROM \"{u.Guild.Id}\" WHERE [UserID] = @id;"
+			//};
 
-            command.Parameters.AddWithValue("@id", u.Id);
+			//command.Parameters.AddWithValue("@id", u.Id);
 
-            await DataAccess.ExecuteCommand(DataAccess._con, command);
-            command.Dispose();
+			//await DataAccess.ExecuteCommand(DataAccess._con, command);
+			//command.Dispose();
+			#endregion
 
-            Console.WriteLine($"Removed {u.Username} from {u.Guild.Name}!");
+			try
+			{
+				using (var db = new LiteDatabase(DatabaseName))
+				{
+					if(db.CollectionExists($"{u.Guild.Id}"))
+					{
+						var collection = db.GetCollection<GuildMember>($"{u.Guild.Id}");
+
+						if(collection.Exists(x => x.UniqueId == u.Id))
+						{
+							collection.Delete(u.Id);
+							Console.WriteLine($"Removed {u.Username} from {u.Guild.Name}!");
+						}
+					}
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+			}
+
+			await Task.CompletedTask;
         }
 
         private static async Task AddNewGuildToDb(SocketGuild s)
         {
-            string dropLol = $"DROP TABLE IF EXISTS \"{s.Id}\"; ";
-            SQLiteCommand command = new SQLiteCommand()
-            {
-                //Server Id as the table name
-                CommandText =
-                    $"CREATE TABLE IF NOT EXISTS \"{s.Id}\" ( [UserID] INTEGER NOT NULL UNIQUE, [Name] TEXT NOT NULL, [Nickname] TEXT, PRIMARY KEY(`UserID`) );",
-            };
+			#region add
+			//string dropLol = $"DROP TABLE IF EXISTS \"{s.Id}\"; ";
+			//SQLiteCommand command = new SQLiteCommand()
+			//{
+			//    //Server Id as the table name
+			//    CommandText =
+			//        $"CREATE TABLE IF NOT EXISTS \"{s.Id}\" ( [UserID] INTEGER NOT NULL UNIQUE, [Name] TEXT NOT NULL, [Nickname] TEXT, PRIMARY KEY(`UserID`) );",
+			//};
 
-            await DataAccess.ExecuteCommand(DataAccess._con, command);
+			//await DataAccess.ExecuteCommand(DataAccess._con, command);
+			#endregion
 
-            Console.WriteLine($"QBot joined new {s.Name}!");
-            var users = s.Users;
-            foreach (var u in users)
-            {
-                await UserJoinedGuild(u);
-            }
+			try
+			{
+				using (var db = new LiteDatabase(DatabaseName))
+				{
+					db.GetCollection<GuildMember>($"{s.Id}");
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+			}
 
-            await Task.CompletedTask;
+			Console.WriteLine($"QBot joined new {s.Name}!");
+			var users = s.Users;
+			foreach (var u in users)
+			{
+				await UserJoinedGuild(u);
+			}
+
+			await Task.CompletedTask;
         }
 
         private async Task InstallCommands()

@@ -5,26 +5,31 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Data\**" />
+    <Compile Remove="RPG\**" />
     <EmbeddedResource Remove="Data\**" />
+    <EmbeddedResource Remove="RPG\**" />
     <None Remove="Data\**" />
+    <None Remove="RPG\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="DataAccess.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="1.0.2" />
+    <PackageReference Include="LiteDB" Version="4.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.106" />
   </ItemGroup>
   <ItemGroup>
     <None Update="BotToken">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="guilds.sqlite">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <None Remove="BotToken - Copy" />
+    <None Remove="guilds.db" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="guilds.sql" />
+    <None Remove="guilds.sqlite" />
   </ItemGroup>
 </Project>
