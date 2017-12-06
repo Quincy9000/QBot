@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Discord;
@@ -10,7 +12,7 @@ namespace QBot
 {
 	class Program
 	{
-		static DiscordSocketClient Client;
+		static DiscordSocketClient _client;
 
 		const string DatabaseName = "guilds.db";
 
@@ -25,45 +27,50 @@ namespace QBot
 
 		public static Random R { get; } = new Random();
 
+		public static int Latency => _client.Latency;
+
+		public static IEnumerable<string> Split(string str, int chunkSize) => Enumerable.Range(0, str.Length / chunkSize)
+			.Select(i => str.Substring(i * chunkSize, chunkSize));
+
 		public static void Main(string[] args) => new Program().Start().GetAwaiter().GetResult();
 
 		async Task Start()
 		{
-			using(Client = new DiscordSocketClient())
+			using(_client = new DiscordSocketClient())
 			{
 				Commands = new CommandService();
 
-				Client.Connected += async () =>
+				_client.Connected += async () =>
 				{
 					Console.WriteLine("Connected!");
 					await Task.CompletedTask;
 				};
 
-				Client.Ready += async () =>
+				_client.Ready += async () =>
 				{
-					Quincy = Client.GetUser(66162202129739776);
-					Console.WriteLine($"In {Client.Guilds.Count} guilds!");
-					foreach(var guild in Client.Guilds)
+					Quincy = _client.GetUser(66162202129739776);
+					Console.WriteLine($"In {_client.Guilds.Count} guilds!");
+					foreach(var guild in _client.Guilds)
 						await AddNewGuildToDb(guild);
 					Console.WriteLine("Ready!");
 					await Task.CompletedTask;
 				};
 
-				Client.LeftGuild += DeleteGuildFromDb;
-				Client.JoinedGuild += AddNewGuildToDb;
+				_client.LeftGuild += DeleteGuildFromDb;
+				_client.JoinedGuild += AddNewGuildToDb;
 
-				Client.UserJoined += UserJoinedGuild;
-				Client.UserLeft += UserLeftGuild;
+				_client.UserJoined += UserJoinedGuild;
+				_client.UserLeft += UserLeftGuild;
 
-				await Client.LoginAsync(TokenType.Bot, Q.Token);
-				await Client.StartAsync();
+				await _client.LoginAsync(TokenType.Bot, Q.Token);
+				await _client.StartAsync();
 
 				await InstallCommands();
 
 				//Wait in 1 second intervals to check if IsExit changed
 				while(!IsExit) await Task.Delay(TimeSpan.FromSeconds(1));
 
-				await Client.LogoutAsync();
+				await _client.LogoutAsync();
 			}
 		}
 
@@ -173,7 +180,7 @@ namespace QBot
 
 		async Task InstallCommands()
 		{
-			Client.MessageReceived += MessageReceived;
+			_client.MessageReceived += MessageReceived;
 			await Commands.AddModulesAsync(Assembly.GetEntryAssembly());
 		}
 
@@ -182,10 +189,10 @@ namespace QBot
 			if(msg is SocketUserMessage message)
 			{
 				int argPos = 0;
-				if(!message.HasCharPrefix('q', ref argPos) || message.HasMentionPrefix(Client.CurrentUser, ref argPos)
+				if(!message.HasCharPrefix('q', ref argPos) || message.HasMentionPrefix(_client.CurrentUser, ref argPos)
 				   || message.Author.IsBot) return;
 
-				var context = new CommandContext(Client, message);
+				var context = new CommandContext(_client, message);
 
 				if(message.HasStringPrefix("qre", ref argPos, StringComparison.CurrentCultureIgnoreCase))
 				{

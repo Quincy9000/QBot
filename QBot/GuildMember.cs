@@ -2,6 +2,9 @@
 
 namespace QBot
 {
+	/// <summary>
+	/// LiteDB uses this class to store members to the database
+	/// </summary>
 	public class GuildMember
 	{
 		/// <summary>

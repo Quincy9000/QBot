@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace QBot
+namespace QBot.Json
 {
 	class E621
 	{

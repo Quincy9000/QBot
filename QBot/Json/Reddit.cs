@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace QBot
+namespace QBot.Json
 {
 	static class Reddit
 	{
