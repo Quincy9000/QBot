@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace QBot
 {
-    internal class E621
+	class E621
 	{
 		public class CreatedAt
 		{

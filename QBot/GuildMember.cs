@@ -2,8 +2,8 @@
 
 namespace QBot
 {
-    public class GuildMember
-    {
+	public class GuildMember
+	{
 		/// <summary>
 		/// Id for this class for LiteDB
 		/// </summary>
@@ -28,5 +28,5 @@ namespace QBot
 		/// The server they are connected to
 		/// </summary>
 		public ulong Server { get; set; }
-    }
+	}
 }

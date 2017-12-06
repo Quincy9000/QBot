@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Globalization;
 using System.Net;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using Discord;

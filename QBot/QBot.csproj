@@ -32,4 +32,7 @@
     <None Remove="guilds.sql" />
     <None Remove="guilds.sqlite" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Commands\RpgCommands.cs" />
+  </ItemGroup>
 </Project>
