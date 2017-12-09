@@ -7,7 +7,6 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using LiteDB;
-using Newtonsoft.Json.Bson;
 
 namespace QBot
 {
@@ -168,7 +167,7 @@ namespace QBot
 
 						if(collection.Exists(x => x.UniqueId == u.Id))
 						{
-							collection.Delete(u.Id);
+							collection.Delete(m => m.UniqueId == u.Id);
 							Console.WriteLine($"Removed {u.Username} from {u.Guild.Name}!");
 						}
 					}

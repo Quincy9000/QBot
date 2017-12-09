@@ -14,7 +14,7 @@ namespace QBot.Commands
 	public class JokeCommands : ModuleBase
 	{
 		[Command("say")]
-		[Summary("says whatever you say, then tries to delete your message if possible")]
+		[Summary("Says whatever you say, then tries to delete your message if possible")]
 		[Alias("echo", "s")]
 		public async Task Say([Remainder] string echo)
 		{
@@ -86,12 +86,12 @@ namespace QBot.Commands
 			while(!done)
 			{
 				//await Context.Message.DeleteAsync();
-				Reddit.RootObject source = JsonConvert.DeserializeObject<Reddit.RootObject>(FunCommands.GetRedditJson("copypasta"));
+				Reddit.RootObject source = JsonConvert.DeserializeObject<Reddit.RootObject>(SexyCommands.GetRedditJson("copypasta"));
 				int tries = 0;
 				while(QRandom.Percent() > 0.5 && tries < 100)
 				{
 					tries++;
-					source = JsonConvert.DeserializeObject<Reddit.RootObject>(FunCommands.GetRedditJson("copypasta",
+					source = JsonConvert.DeserializeObject<Reddit.RootObject>(SexyCommands.GetRedditJson("copypasta",
 						source.Data.After.ToString(),
 						100));
 				}
@@ -116,7 +116,8 @@ namespace QBot.Commands
 		}
 
 		[Command("bigly")]
-		[Summary("big emote")]
+		[Summary("Big emoji")]
+		[Alias("big")]
 		public async Task Bigly(string s)
 		{
 			Regex rx = new Regex("<:([^:]+):([^:>]+)>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -137,7 +138,7 @@ namespace QBot.Commands
 		}
 
 		[Command("henlo")]
-		[Summary("henlo you stinky")]
+		[Summary("Henlo you stinky")]
 		public async Task Henlo([Remainder] string hi = null)
 		{
 			if(string.IsNullOrEmpty(hi))

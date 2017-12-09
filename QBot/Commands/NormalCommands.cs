@@ -14,24 +14,6 @@ namespace QBot.Commands
 	/// </summary>
 	public class NormalCommands : ModuleBase
 	{
-		[Command("help")]
-		[Summary("Lists all the available commands that the bot can currently do")]
-		public async Task Help()
-		{
-			var eb = new EmbedBuilder();
-
-			var mi = GetType().GetMethods();
-			for(var o = 0; o < mi.Length; o++)
-			{
-				var myAttribute1 = mi[o].GetCustomAttributes(true).OfType<CommandAttribute>().FirstOrDefault();
-				var myAttribute2 = mi[o].GetCustomAttributes(true).OfType<SummaryAttribute>().FirstOrDefault();
-				if(myAttribute1 != null && myAttribute2 != null)
-					eb.AddField(myAttribute1.Text, myAttribute2.Text);
-			}
-
-			await ReplyAsync("", false, eb);
-		}
-
 		[Command("ping")]
 		[Summary("Gets latency to server")]
 		public async Task Ping()
@@ -40,7 +22,7 @@ namespace QBot.Commands
 		}
 
 		[Command("users")]
-		[Summary("lists all the users in the guild")]
+		[Summary("Lists all the users in the guild")]
 		public async Task ListUsers()
 		{
 			string users = "";
@@ -239,7 +221,7 @@ namespace QBot.Commands
 		}
 
 		[Command("reset")]
-		[Summary("resets all nicknames")]
+		[Summary("Resets all nicknames to default username")]
 		[RequireUserPermission(GuildPermission.Administrator)]
 		public async Task SetAllNames()
 		{
@@ -255,7 +237,7 @@ namespace QBot.Commands
 		}
 
 		[Command("nickname")]
-		[Summary("Sets all the nicknames on the server to default")]
+		[Summary("Sets your nickname to the one you choose")]
 		[RequireUserPermission(GuildPermission.ChangeNickname)]
 		public async Task SetNickName(string name)
 		{

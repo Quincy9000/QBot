@@ -17,12 +17,12 @@ namespace QBot.Commands
 	/// <summary>
 	///     Commands that are "sexy" ;)
 	/// </summary>
-	public class FunCommands : ModuleBase
+	public class SexyCommands : ModuleBase
 	{
 		[Command("e621")]
-		[Alias("e6")]
+		[Alias("e6", "yiff")]
 		[Summary("Find content through e621")]
-		public async Task SearchByTags(params string[] tags)
+		public async Task SearchByTags(params string[] _tags)
 		{
 			try
 			{
@@ -32,27 +32,36 @@ namespace QBot.Commands
 					return;
 				}
 
-				for(int i = 0; i < tags.Length; i++)
+				List<string> tags = new List<string>(_tags);
+
+				for(int i = 0; i < tags.Count; i++)
 				{
 					var tag = tags[i];
-					if(tag.ToLower() == "blacklist")
-					{
-						//if blacklist we replace it with the tags that they use as a blacklist
-						tags[i] = GetBlackListTags().Result;
-					}
 					if(tag.Contains("/"))
 					{
 						tags[i] = tag.Replace("/", "%25-2F");
 					}
 				}
 
-				//combine all the parsed tags into one string again
+				//combine all the parsed _tags into one string again
 				var search = new StringBuilder();
-				foreach(var tag in tags)
-					search.Append(tag + " ");
+				search.AppendJoin("+", tags);
+				search.Append(" ");
+
+				var blackList = GetBlackListTags().Result;
+				if(!string.IsNullOrEmpty(blackList))
+				{
+					search.Append(blackList);
+				}
+
+				var global = GetGlobalTagBans().Result;
+				if(!string.IsNullOrEmpty(global))
+				{
+					search.Append(global);
+				}
 
 				//using the e621 api to grab the page in JSON
-				var e621 = new Uri("https://e621.net/post/index.json?tags=" + search);
+				var e621 = new Uri("https://e621.net/post/index.json?tags=" + search + "&limit=50");
 
 				Console.WriteLine(e621.ToString());
 
@@ -104,12 +113,72 @@ namespace QBot.Commands
 			}
 		}
 
+		class BannedTags
+		{
+			public Guid Id { get; set; }
+
+			public string Tags { get; set; } = "";
+		}
+
+		[Command("setglobalbannedtags")]
+		[Summary("Removes these tags from search no matter who searches")]
+		[Alias("sgbt")]
+		[RequireUserPermission(GuildPermission.Administrator)]
+		public async Task SetGlobalBannedTags(params string[] _tags)
+		{
+			//cant use list in parameter because discord doesnt support it
+			List<string> tags = new List<string>(_tags);
+
+			try
+			{
+				using(var db = new LiteDatabase(Program.DatabaseConnectionString))
+				{
+					if(db.CollectionExists($"tags-{Context.Guild.Id}"))
+					{
+						db.DropCollection($"tags-{Context.Guild.Id}");
+					}
+
+					var collection = db.GetCollection<BannedTags>($"tags-{Context.Guild.Id}");
+
+					var ban = new BannedTags();
+					foreach(var tag in tags)
+					{
+						ban.Tags += tag;
+					}
+
+					collection.Insert(ban);
+
+					Console.WriteLine("Set global banned tags!");
+					await ReplyAsync("Set global banned tags!");
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+				throw;
+			}
+		}
+
+		[Command("getglobalbannedtags")]
+		[Summary("Shows the tags that were banned in this server")]
+		[Alias("ggbt")]
+		public async Task GetGlobalTags()
+		{
+			var tags = GetGlobalTagBans().Result;
+			if(string.IsNullOrEmpty(tags))
+			{
+				await ReplyAsync("No global tags set!");
+				return;
+			}
+			await ReplyAsync($"Banned global tags are {tags}");
+		}
+
 		/// <summary>
-		/// Set your preferred tags to blacklist
+		/// Set your preferred _tags to blacklist
 		/// </summary>
 		/// <returns></returns>
 		[Command("setblacklist")]
-		[Summary("set ")]
+		[Summary("Set blacklisted tags")]
 		[Alias("sbl")]
 		public async Task SetBlackListTags(params string[] tags)
 		{
@@ -126,7 +195,7 @@ namespace QBot.Commands
 					{
 						if(tag.ToLower() == "clear")
 						{
-							//set no tags
+							//set no _tags
 							member.BlackTags = "";
 							Console.WriteLine($"Cleared tags for {member.UserName}!");
 							await ReplyAsync($"Cleared tags for {member.UserName}!");
@@ -148,8 +217,8 @@ namespace QBot.Commands
 		}
 
 		[Command("nope")]
-		[Summary("deletes the last nsfw post if the search didnt blacklist tags correctly")]
-		[Alias("badbot!")]
+		[Summary("Deletes the last nsfw post if the search didnt blacklist tags correctly")]
+		[Alias("badbot")]
 		public async Task Nope()
 		{
 			var messages =
@@ -161,7 +230,7 @@ namespace QBot.Commands
 		}
 
 		[Command("getblacklist")]
-		[Summary("get the tags that the user set")]
+		[Summary("Get the tags that the user set")]
 		[Alias("gbl")]
 		public async Task GetBlackTags()
 		{
@@ -198,6 +267,30 @@ namespace QBot.Commands
 			return Task.FromResult("");
 		}
 
+		Task<string> GetGlobalTagBans()
+		{
+			try
+			{
+				using(var db = new LiteDatabase(Program.DatabaseConnectionString))
+				{
+					var members = db.GetCollection<BannedTags>($"tags-{Context.Guild.Id}");
+
+					var tags = members.FindAll();
+
+					var tag = tags.FirstOrDefault();
+
+					if(!string.IsNullOrEmpty(tag?.Tags))
+						return Task.FromResult(tag.Tags);
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+			}
+
+			return Task.FromResult("");
+		}
+
 		public static string GetRedditJson(string sub, string id = null, int count = 25)
 		{
 			string json;
@@ -213,7 +306,7 @@ namespace QBot.Commands
 
 		[Command("subpic")]
 		[Alias("sp", "pic")]
-		[Summary("Get a pic from a subreddit")]
+		[Summary("Get a picture from a subreddit")]
 		public async Task Sub([Summary("The sub to get the image from")] string sub, int amount = 1)
 		{
 			const int limit = 25;
