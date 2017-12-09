@@ -31,5 +31,11 @@ namespace QBot
 		/// The server they are connected to
 		/// </summary>
 		public ulong Server { get; set; }
+		
+		/// <summary>
+		/// Blacklisted tags for e621
+		/// </summary>
+		public string BlackTags { get; set; }
+
 	}
 }

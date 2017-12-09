@@ -9,7 +9,9 @@ namespace QBot
 
 		public static int Number(int min = 1, int max = 100) => Rand.Next(min, max + 1);
 
-		static int Next(int min, int max) => Rand.Next(min, max);
+		public static int Next(int min, int max) => Rand.Next(min, max);
+
+		public static double Percent() => Rand.NextDouble();
 
 		/// <summary>
 		/// Gets a random index from the array

@@ -7,83 +7,111 @@ using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using LiteDB;
+using Newtonsoft.Json.Bson;
 
 namespace QBot
 {
-	class Program
+	static class Program
 	{
+		/// <summary>
+		/// Client for discord
+		/// </summary>
 		static DiscordSocketClient _client;
 
-		const string DatabaseName = "guilds.db";
+		/// <summary>
+		/// File used for database interactions
+		/// </summary>
+		public const string DatabaseConnectionString = "guilds.db";
 
+		/// <summary>
+		/// Change this to true when you want the bot to stop
+		/// </summary>
 		public static bool IsExit = false;
 
 		/// <summary>
+		/// Change this to true when you want to reboot the bot
+		/// </summary>
+		public static bool IsReboot = false;
+		
+		/// <summary>
 		/// Owner of the bot
 		/// </summary>
-		static SocketUser Quincy;
+		public static SocketUser Owner { get; private set; }
+		
+		/// <summary>
+		/// The bot itself
+		/// </summary>
+		public static SocketUser Bot { get; private set; }
 
-		CommandService Commands;
-
-		public static Random R { get; } = new Random();
+		static CommandService _commands;
 
 		public static int Latency => _client.Latency;
 
 		public static IEnumerable<string> Split(string str, int chunkSize) => Enumerable.Range(0, str.Length / chunkSize)
 			.Select(i => str.Substring(i * chunkSize, chunkSize));
 
-		public static void Main(string[] args) => new Program().Start().GetAwaiter().GetResult();
+		public static void Main(string[] args) => Start().GetAwaiter().GetResult();
 
-		async Task Start()
-		{
-			using(_client = new DiscordSocketClient())
+		public static async Task Start()
+		{						
+			do
 			{
-				Commands = new CommandService();
-
-				_client.Connected += async () =>
+				IsReboot = false;
+				IsExit = false;
+				using(_client = new DiscordSocketClient())				
 				{
-					Console.WriteLine("Connected!");
-					await Task.CompletedTask;
-				};
+					_commands = new CommandService();
 
-				_client.Ready += async () =>
-				{
-					Quincy = _client.GetUser(66162202129739776);
-					Console.WriteLine($"In {_client.Guilds.Count} guilds!");
-					foreach(var guild in _client.Guilds)
-						await AddNewGuildToDb(guild);
-					Console.WriteLine("Ready!");
-					await Task.CompletedTask;
-				};
+					_client.Connected += async () =>
+					{
+						Console.WriteLine("Connected!");
+						await Task.CompletedTask;
+					};
 
-				_client.LeftGuild += DeleteGuildFromDb;
-				_client.JoinedGuild += AddNewGuildToDb;
+					_client.Ready += async () =>
+					{
+						//replace with your id
+						Owner = _client.GetUser(66162202129739776);
+						//replace with your bot id
+						Bot = _client.GetUser(315370917825871872);
+						Console.WriteLine($"In {_client.Guilds.Count} guilds!");
+						//Check for users that could have joined when the bot was offline
+						foreach(var guild in _client.Guilds)
+							await AddNewGuildToDb(guild);
+						Console.WriteLine("Ready!");
+						await Task.CompletedTask;
+					};
 
-				_client.UserJoined += UserJoinedGuild;
-				_client.UserLeft += UserLeftGuild;
+					_client.LeftGuild += DeleteGuildFromDb;
+					_client.JoinedGuild += AddNewGuildToDb;
 
-				await _client.LoginAsync(TokenType.Bot, Q.Token);
-				await _client.StartAsync();
+					_client.UserJoined += UserJoinedGuild;
+					_client.UserLeft += UserLeftGuild;
 
-				await InstallCommands();
+					await _client.LoginAsync(TokenType.Bot, Q.Token);
+					await _client.StartAsync();
 
-				//Wait in 1 second intervals to check if IsExit changed
-				while(!IsExit) await Task.Delay(TimeSpan.FromSeconds(1));
+					await InstallCommands();
 
-				await _client.LogoutAsync();
+					//Wait in 1 second intervals to check if IsExit changed
+					while(!IsExit) await Task.Delay(TimeSpan.FromSeconds(1));
+
+					await _client.LogoutAsync();
+				}
 			}
+			while(IsReboot);
 		}
 
 		static async Task DeleteGuildFromDb(SocketGuild s)
 		{
 			try
 			{
-				using(var db = new LiteDatabase(DatabaseName))
+				using(var db = new LiteDatabase(DatabaseConnectionString))
 				{
 					if(db.CollectionExists($"{s.Id}"))
 					{
 						db.DropCollection($"{s.Id}");
-						Console.WriteLine($"QBot left {s.Name}!");
+						Console.WriteLine($"Bot left {s.Name}!");
 					}
 				}
 			}
@@ -99,7 +127,7 @@ namespace QBot
 		{
 			try
 			{
-				using(var db = new LiteDatabase(DatabaseName))
+				using(var db = new LiteDatabase(DatabaseConnectionString))
 				{
 					var collection = db.GetCollection<GuildMember>($"{u.Guild.Id}");
 
@@ -132,7 +160,7 @@ namespace QBot
 		{
 			try
 			{
-				using(var db = new LiteDatabase(DatabaseName))
+				using(var db = new LiteDatabase(DatabaseConnectionString))
 				{
 					if(db.CollectionExists($"{u.Guild.Id}"))
 					{
@@ -158,7 +186,7 @@ namespace QBot
 		{
 			try
 			{
-				using(var db = new LiteDatabase(DatabaseName))
+				using(var db = new LiteDatabase(DatabaseConnectionString))
 				{
 					db.GetCollection<GuildMember>($"{s.Id}");
 				}
@@ -168,7 +196,7 @@ namespace QBot
 				Console.WriteLine(e);
 			}
 
-			Console.WriteLine($"QBot joined new {s.Name}!");
+			Console.WriteLine($"Bot joined {s.Name}!");
 			var users = s.Users;
 			foreach(var u in users)
 			{
@@ -178,13 +206,13 @@ namespace QBot
 			await Task.CompletedTask;
 		}
 
-		async Task InstallCommands()
+		static async Task InstallCommands()
 		{
 			_client.MessageReceived += MessageReceived;
-			await Commands.AddModulesAsync(Assembly.GetEntryAssembly());
+			await _commands.AddModulesAsync(Assembly.GetEntryAssembly());
 		}
 
-		async Task MessageReceived(SocketMessage msg)
+		static async Task MessageReceived(SocketMessage msg)
 		{
 			if(msg is SocketUserMessage message)
 			{
@@ -194,7 +222,7 @@ namespace QBot
 
 				var context = new CommandContext(_client, message);
 
-				if(message.HasStringPrefix("qre", ref argPos, StringComparison.CurrentCultureIgnoreCase))
+				if(message.HasStringPrefix("qree", ref argPos, StringComparison.CurrentCultureIgnoreCase))
 				{
 					string ree = "REE";
 					foreach(var s in message.ToString())
@@ -205,7 +233,7 @@ namespace QBot
 					await message.Channel.SendMessageAsync(ree);
 				}
 
-				var result = await Commands.ExecuteAsync(context, argPos);
+				var result = await _commands.ExecuteAsync(context, argPos);
 
 				if(!result.IsSuccess)
 					Console.WriteLine(result.ErrorReason);

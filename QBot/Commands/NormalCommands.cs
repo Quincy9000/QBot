@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
+using LiteDB;
 
 namespace QBot.Commands
 {
@@ -34,7 +36,42 @@ namespace QBot.Commands
 		[Summary("Gets latency to server")]
 		public async Task Ping()
 		{
-			await ReplyAsync($"QPong! {Program.Latency}ms");
+			await ReplyAsync($"QPong {Program.Latency}ms!");
+		}
+
+		[Command("users")]
+		[Summary("lists all the users in the guild")]
+		public async Task ListUsers()
+		{
+			string users = "";
+			try
+			{
+				using(var db = new LiteDatabase(Program.DatabaseConnectionString))
+				{
+					var collection = db.GetCollection<GuildMember>($"{Context.Guild.Id}");
+
+					bool flag = true;
+					foreach(var user in collection.FindAll())
+					{
+						if(flag)
+						{
+							users += user.UserName;
+							flag = false;
+						}
+						else
+						{
+							users += ", " + user.UserName;
+						}
+					}
+
+					await ReplyAsync(users + $"\nUsers: {collection.Count()}");
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+				throw;
+			}
 		}
 
 		[Command("userinfo")]
@@ -43,6 +80,31 @@ namespace QBot.Commands
 		public async Task UserInfo([Summary("The (optional) user to get info for")] IUser u = null)
 		{
 			var eb = new EmbedBuilder();
+
+			if(u is null)
+			{
+				var uuser = (SocketGuildUser) Context.User;
+				var ug = "";
+				if(uuser.Game.HasValue)
+					ug = $"\n**Game:** {uuser.Game.Value}";
+				if(!string.IsNullOrEmpty(uuser.GetAvatarUrl()))
+				{
+					var url = uuser.GetAvatarUrl();
+					eb.WithAuthor(b =>
+					{
+						b.Name = uuser.Username;
+						b.IconUrl = url;
+					});
+				}
+				var ubot = uuser.IsBot ? "**Bot:** BEEP BOOP NOT A BOT" : "**Human:** I AM A HUMAN";
+				var uroles = string.Join(", ", uuser.Roles);
+				eb.Description =
+					$"**Nickname:** {uuser.Nickname}\n**ID:** {uuser.Id}\n**Date Joined:** {uuser.CreatedAt.DateTime}{ug}\n**Status:** {uuser.Status}\n{ubot}\n**Roles:** {uroles}";
+				eb.WithColor(new Color(QRandom.Next(0, 256), QRandom.Next(0, 256), QRandom.Next(0, 256)));
+				await ReplyAsync("", false, eb);
+				return;
+			}
+
 			if(!(u is SocketGuildUser user)) return;
 
 			var g = "";
@@ -64,7 +126,7 @@ namespace QBot.Commands
 					roles += $"{r.Name}, ";
 			eb.Description =
 				$"**Nickname:** {user.Nickname}\n**ID:** {user.Id}\n**Date Joined:** {user.CreatedAt.DateTime}{g}\n**Status:** {user.Status}\n{bot}\n**Roles:** {roles}";
-			eb.WithColor(new Color(Program.R.Next(0, 256), Program.R.Next(0, 256), Program.R.Next(0, 256)));
+			eb.WithColor(new Color(QRandom.Next(0, 256), QRandom.Next(0, 256), QRandom.Next(0, 256)));
 			await ReplyAsync("", false, eb);
 		}
 
@@ -99,6 +161,7 @@ namespace QBot.Commands
 
 			var msg = "";
 			for(var i = 0; i < word.Length; i++)
+			{
 				if(char.IsDigit(word[i]))
 					msg += $":{numbers[word[i]]}:";
 				else if(char.ToLower(word[i]) == 'b' || char.ToLower(word[i]) == 'g')
@@ -111,6 +174,7 @@ namespace QBot.Commands
 					msg += "  ";
 				else
 					msg += $"{word[i]}";
+			}
 
 			if(msg.Length > 2000)
 			{
@@ -124,7 +188,6 @@ namespace QBot.Commands
 				await ReplyAsync(msg);
 			}
 		}
-
 
 		[Command("delete")]
 		[Summary("Deletes all the messages from a user N number of times")]
@@ -155,25 +218,40 @@ namespace QBot.Commands
 		[Alias("shutdown", "downs")]
 		public async Task ShutDown()
 		{
-			if(Context.User.ToString() == "Quincy#1672")
+			if(Context.User.Id == Program.Owner.Id)
 			{
 				await ReplyAsync("Shutting down!");
 				Program.IsExit = true;
+				Program.IsReboot = false;
+			}
+		}
+
+		[Command("reboot")]
+		[Summary("reboot the bot")]
+		public async Task Reboot()
+		{
+			if (Context.User.Id == Program.Owner.Id)
+			{
+				await ReplyAsync("Rebooting!");
+				Program.IsExit = true;
+				Program.IsReboot = true;
 			}
 		}
 
 		[Command("reset")]
-		[Summary("fuck shit up")]
+		[Summary("resets all nicknames")]
 		[RequireUserPermission(GuildPermission.Administrator)]
 		public async Task SetAllNames()
 		{
 			var users = await Context.Guild.GetUsersAsync();
 			foreach(var user in users)
+			{
 				try
 				{
 					await user.ModifyAsync(u => u.Nickname = user.Username);
 				}
 				catch { }
+			}
 		}
 
 		[Command("nickname")]
@@ -183,11 +261,13 @@ namespace QBot.Commands
 		{
 			var users = await Context.Guild.GetUsersAsync();
 			foreach(var user in users)
+			{
 				if(user.Id == Context.User.Id)
 				{
 					await user.ModifyAsync(u => u.Nickname = name);
 					break;
 				}
+			}
 		}
 	}
 }

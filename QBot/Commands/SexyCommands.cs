@@ -1,11 +1,14 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Discord;
 using Discord.Commands;
+using LiteDB;
 using Newtonsoft.Json;
 using QBot.Json;
 
@@ -19,7 +22,7 @@ namespace QBot.Commands
 		[Command("e621")]
 		[Alias("e6")]
 		[Summary("Find content through e621")]
-		public async Task SearchByTags([Remainder] string tags)
+		public async Task SearchByTags(params string[] tags)
 		{
 			try
 			{
@@ -28,28 +31,24 @@ namespace QBot.Commands
 					await ReplyAsync("NSFW content not allowed here");
 					return;
 				}
-				//first we parse the string to make sure it is valid
 
-				//raw tags
-				var allTags = tags.Split(' ');
-
-				//parsed new tags
-				var Tags = new List<string>();
-
-				foreach(var tag in allTags)
+				for(int i = 0; i < tags.Length; i++)
+				{
+					var tag = tags[i];
+					if(tag.ToLower() == "blacklist")
+					{
+						//if blacklist we replace it with the tags that they use as a blacklist
+						tags[i] = GetBlackListTags().Result;
+					}
 					if(tag.Contains("/"))
 					{
-						var newTag = tag.Replace("/", "%25-2F");
-						Tags.Add(newTag);
+						tags[i] = tag.Replace("/", "%25-2F");
 					}
-					else
-					{
-						Tags.Add(tag);
-					}
+				}
 
 				//combine all the parsed tags into one string again
 				var search = new StringBuilder();
-				foreach(var tag in Tags)
+				foreach(var tag in tags)
 					search.Append(tag + " ");
 
 				//using the e621 api to grab the page in JSON
@@ -69,6 +68,7 @@ namespace QBot.Commands
 							var json = web.DownloadString(e621);
 							//Console.WriteLine(json);
 							var o = JsonConvert.DeserializeObject<List<E621.RootObject>>(json);
+
 							var post = QRandom.ArrayRandom(o);
 							var eb = new EmbedBuilder();
 							//eb.Author = new EmbedAuthorBuilder();
@@ -84,7 +84,7 @@ namespace QBot.Commands
 							}
 
 							eb.WithColor(C(), C(), C());
-							eb.WithFooter("QBot by Quincy!");
+							eb.WithFooter("Bot by Owner!");
 							var d = Context.Channel.EnterTypingState();
 							await ReplyAsync("", false, eb);
 							d.Dispose();
@@ -102,6 +102,100 @@ namespace QBot.Commands
 			{
 				await ReplyAsync("Could not find what we were looking for, sorry!");
 			}
+		}
+
+		/// <summary>
+		/// Set your preferred tags to blacklist
+		/// </summary>
+		/// <returns></returns>
+		[Command("setblacklist")]
+		[Summary("set ")]
+		[Alias("sbl")]
+		public async Task SetBlackListTags(params string[] tags)
+		{
+			try
+			{
+				using(var db = new LiteDatabase(Program.DatabaseConnectionString))
+				{
+					var members = db.GetCollection<GuildMember>($"{Context.Guild.Id}");
+
+					//Find the member who called this func from the db
+					var member = members.FindOne(id => id.UniqueId == Context.User.Id);
+
+					foreach(var tag in tags)
+					{
+						if(tag.ToLower() == "clear")
+						{
+							//set no tags
+							member.BlackTags = "";
+							Console.WriteLine($"Cleared tags for {member.UserName}!");
+							await ReplyAsync($"Cleared tags for {member.UserName}!");
+							members.Update(member);
+							return;
+						}
+						member.BlackTags += " " + tag;
+					}
+
+					members.Update(member);
+					await ReplyAsync($"Updated tags for {member.UserName}!");
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+			}
+			await Task.CompletedTask;
+		}
+
+		[Command("nope")]
+		[Summary("deletes the last nsfw post if the search didnt blacklist tags correctly")]
+		[Alias("badbot!")]
+		public async Task Nope()
+		{
+			var messages =
+				new List<IMessage>(await Context.Channel.GetMessagesAsync(Context.Message, Direction.Before).Flatten());
+
+			var msg = messages.Where(m => m.Author.Id == Program.Bot.Id && m.Embeds.Count > 0).ToArray()[0];
+
+			await Context.Channel.DeleteMessagesAsync(new IMessage[1] {msg});
+		}
+
+		[Command("getblacklist")]
+		[Summary("get the tags that the user set")]
+		[Alias("gbl")]
+		public async Task GetBlackTags()
+		{
+			var memberTags = GetBlackListTags().Result;
+			if(string.IsNullOrEmpty(memberTags))
+				await ReplyAsync($"Tags for {Context.User.Username}: None set!");
+			else
+			{
+				await ReplyAsync($"Tags for {Context.User.Username}: {memberTags}!");
+			}
+
+			await Task.CompletedTask;
+		}
+
+		Task<string> GetBlackListTags()
+		{
+			try
+			{
+				using(var db = new LiteDatabase(Program.DatabaseConnectionString))
+				{
+					var members = db.GetCollection<GuildMember>($"{Context.Guild.Id}");
+
+					//Find the member who called this func from the db
+					var member = members.FindOne(id => id.UniqueId == Context.User.Id);
+
+					return Task.FromResult(member.BlackTags);
+				}
+			}
+			catch(Exception e)
+			{
+				Console.WriteLine(e);
+			}
+
+			return Task.FromResult("");
 		}
 
 		public static string GetRedditJson(string sub, string id = null, int count = 25)
@@ -132,7 +226,7 @@ namespace QBot.Commands
 				var urls = new List<ushort>();
 				page = JsonConvert.DeserializeObject<Reddit.RootObject>(GetRedditJson(sub));
 				var tries = 0;
-				while(Program.R.NextDouble() > 0.5 && tries < 100)
+				while(QRandom.Percent() > 0.5 && tries < 100)
 				{
 					tries++;
 					page = JsonConvert.DeserializeObject<Reddit.RootObject>(GetRedditJson(sub, page.Data.After.ToString(), 100));
@@ -147,7 +241,7 @@ namespace QBot.Commands
 				while(count < amount && tries < 100)
 				{
 					tries++;
-					var i = (ushort) Program.R.Next(0, page.Data.Children.Count);
+					var i = (ushort) QRandom.Next(0, page.Data.Children.Count);
 					if(page.Data.Children[i].Data.Domain.Contains("imgur")
 					   || page.Data.Children[i].Data.Domain.Contains("jpg")
 					   || page.Data.Children[i].Data.Domain.Contains("png")

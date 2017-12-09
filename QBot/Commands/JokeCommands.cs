@@ -60,7 +60,7 @@ namespace QBot.Commands
 				string emote = "";
 				for(int j = 0; j < i;)
 				{
-					int r = Program.R.Next(0, Emotes.Count);
+					int r = QRandom.Next(0, Emotes.Count);
 					if(!randomsUsed.Contains(r))
 					{
 						randomsUsed.Add(r);
@@ -88,7 +88,7 @@ namespace QBot.Commands
 				//await Context.Message.DeleteAsync();
 				Reddit.RootObject source = JsonConvert.DeserializeObject<Reddit.RootObject>(FunCommands.GetRedditJson("copypasta"));
 				int tries = 0;
-				while(Program.R.NextDouble() > 0.5 && tries < 100)
+				while(QRandom.Percent() > 0.5 && tries < 100)
 				{
 					tries++;
 					source = JsonConvert.DeserializeObject<Reddit.RootObject>(FunCommands.GetRedditJson("copypasta",
@@ -97,7 +97,7 @@ namespace QBot.Commands
 				}
 				if(source == null) return;
 
-				int r = Program.R.Next(0, source.Data.Children.Count);
+				int r = QRandom.Next(0, source.Data.Children.Count);
 				text = source.Data.Children[r].Data.Selftext;
 				if(!string.IsNullOrEmpty(text))
 					done = true;
